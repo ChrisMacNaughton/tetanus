@@ -1,0 +1,6 @@
+[package]
+name = "tetanus"
+version = "0.1.0"
+authors = ["Chris MacNaughton <chris.macnaughton@canonical.com>"]
+[dependencies]
+clap = {version = "*", features = ["yaml"]}

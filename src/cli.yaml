@@ -1,0 +1,25 @@
+name: tetanue
+version: 0.1.0
+author: Chris M. <tetanus@macnaughton.email>
+about: Web Server
+args:
+    - CONFIG:
+        short: c
+        long: config
+        help: Sets a custom config file
+        takes_value: true
+    - PORT:
+        help: Sets the port to listen on
+        short: p
+        long: port
+        takes_value: true
+    - ADDRESS:
+        help: Sets the address to bind to
+        short: b
+        long: bind
+        takes_value: true
+    - DIRECTORY:
+        help: Directory to serve files from
+        short: d
+        long: directory
+        takes_value: true
