@@ -1,5 +1,4 @@
-#[macro_use]
-extern crate clap;
+#[macro_use] extern crate clap;
 use clap::App;
 use std::net::TcpListener;
 use std::thread;
