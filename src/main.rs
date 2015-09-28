@@ -37,13 +37,18 @@ fn handle_args() -> Args{
     )
 }
 
+fn serve_directory() -> String{
+    handle_args().directory
+}
 fn handle_client(mut request: request::Request) {
-    let resp = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n<doctype !html><html><head><title>Hello</title></head><body><h1>Hello, world!</h1></body></html>\r\n";
-    request.response = request::Response {
-        body: resp.to_string(),
-    };
-    match request.stream.write(request.response.to_response()) {
-        Ok(_) => println!("Response sent!"),
+    // let response_header = format!("{} {}\r\nContent-Type: {}\r\n\r\n", request.headers["Version"], "200 OK", "text/html");
+    // let response_body = format!("{}", "<html><head><title>Hello</title></head><body><h1>Hello, World!</h1></body></html>");
+    // let resp = format!("{}{}\r\n", response_header, response_body);
+    // request.response = request::Response {
+    //     body: resp,
+    // };
+    match request.stream.write(request.response.to_response(request.headers, serve_directory())) {
+        Ok(_) => {},
         Err(e) => println!("Failed sending response: {}!", e),
     }
     request.stream.shutdown(Shutdown::Both);
@@ -53,6 +58,7 @@ fn main() {
     println!("{:?}", args);
     let listen_on = format!("{}:{}", args.address, args.port);
     println!("About to bind to: {}", listen_on);
+    println!("Serving files from: {}", args.directory);
 
     // https://users.rust-lang.org/t/string-type-coercion-in-rust/1439
     let listener = TcpListener::bind(&*listen_on).unwrap();
