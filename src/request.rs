@@ -8,7 +8,93 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::path::Path;
 use std::fs::File;
-// use self::regex::Regex;
+
+#[cfg(test)]
+mod tests{
+
+    fn test_content_type(req: &str, proof: &str) {
+        assert_eq!(super::Response::get_content_type(req), proof);
+    }
+
+    fn test_method(req: &str, proof: &str) {
+        let method = super::parse_method(req);
+        assert_eq!(method, proof);
+    }
+
+    fn test_path(req: &str, proof: &str) {
+        let path = super::parse_path(req);
+        assert_eq!(path, proof);
+    }
+
+    fn test_version(req: &str, proof: &str) {
+        let version = super::parse_version(req);
+        assert_eq!(version, proof);
+    }
+
+    #[test]
+    fn test_parse_header(){
+        let header_string = "GET / HTTP/1.1
+Host: localhost:8080
+User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:41.0) Gecko/20100101 Firefox/41.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate
+DNT: 1
+Cookie: _ga=GA1.1.395469911.1442866274
+Connection: keep-alive
+".to_string();
+        let headers = super::parse_headers(header_string);
+
+        assert_eq!(headers["DNT"], "1");
+        assert_eq!(headers["Host"], "localhost:8080")
+    }
+
+    #[test]
+    fn test_parse_method() {
+        test_method("GET / HTTP/1.1", "GET");
+
+        test_method("GET /test HTTP/1.1", "GET");
+
+        test_method("PUT /test HTTP/1.1", "PUT");
+
+        test_method("POST / HTTP/1.1", "POST");
+
+        test_method("GET / HTTP/1.0", "GET");
+    }
+
+    #[test]
+    fn test_parse_path() {
+        test_path("GET / HTTP/1.1", "/");
+
+        test_path("GET /test HTTP/1.1", "/test");
+
+        test_path("PUT /test HTTP/1.1", "/test");
+
+        test_path("POST / HTTP/1.1", "/");
+
+        test_path("GET / HTTP/1.0", "/");
+
+    }
+
+    #[test]
+    fn test_parse_version() {
+        test_version("GET /test HTTP/1.1", "HTTP/1.1");
+
+        test_version("PUT / HTTP/1.0", "HTTP/1.0");
+
+        test_version("POST / HTTP/1.1", "HTTP/1.1");
+
+        test_version("GET / HTTP/1.0" ,"HTTP/1.0");
+    }
+
+    #[test]
+    fn test_parse_content_type() {
+        test_content_type("index.html", "text/html");
+        test_content_type("style.css", "text/css");
+        test_content_type("script.js", "text/javascript");
+        test_content_type("some.bs_extension", "text/plain");
+    }
+}
 #[derive(Debug)]
 pub struct Request {
     pub stream: TcpStream,
@@ -79,7 +165,7 @@ impl Response {
             None => "404 Not Found".to_string(),
         };
         // let status = "200 OK";
-        let content_type = self.get_content_type(&path);//"text/html";
+        let content_type = Response::get_content_type(&path);//"text/html";
         println!("{} - {} {}", status, method, path);
         let response_header = format!("{} {}\r\nContent-Type: {}\r\n\r\n", version, status, content_type);
         let response_body = format!("{}", response_text);
@@ -114,7 +200,7 @@ impl Response {
         content
     }
 
-    fn get_content_type(&self, filename: &str) -> String {
+    pub fn get_content_type(filename: &str) -> String {
         // let formats =
         let format = match filename.split(".").last() {
             Some(format) => format,
@@ -129,7 +215,7 @@ impl Response {
 
     pub fn content_type_for(format: &str) -> String {
         let mut types = HashMap::new();
-        types.insert("html", "text/html; charset=utf-8");
+        types.insert("html", "text/html");
         types.insert("css", "text/css");
         types.insert("js", "text/javascript");
         types.insert("p12", "application/x-pkcs12");
@@ -393,11 +479,14 @@ fn parse_version(request: &str) -> String {
     let method = parse_method(request);
     let path = parse_path(request);
     let version_string = request.to_string().replace(&method, "");
-    let path = match path.as_ref() {
-        "/" => "/path".to_string(),
-        _ => path,
+    let version_string = match path.as_ref() {
+        "/" => {
+            version_string.trim().trim_left_matches('/').to_string()
+        },
+        _ => {
+            version_string.replace(&path, "").to_string()
+        }
     };
-    let version_string = version_string.replace(&path, "");
     version_string.trim().to_string()
 }
 
