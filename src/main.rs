@@ -51,7 +51,7 @@ fn handle_client(mut request: request::Request) {
         Ok(_) => {},
         Err(e) => println!("Failed sending response: {}!", e),
     }
-    request.stream.shutdown(Shutdown::Both);
+    let _ = request.stream.shutdown(Shutdown::Both);
 }
 fn main() {
     let args = handle_args();

@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::path::Path;
 use std::fs::File;
-
 #[cfg(test)]
 mod tests{
 
@@ -34,19 +33,19 @@ mod tests{
     #[test]
     fn test_parse_header(){
         let header_string = "GET / HTTP/1.1
-Host: localhost:8080
-User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:41.0) Gecko/20100101 Firefox/41.0
-Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
-Accept-Language: en-US,en;q=0.5
-Accept-Encoding: gzip, deflate
-DNT: 1
-Cookie: _ga=GA1.1.395469911.1442866274
-Connection: keep-alive
-".to_string();
-        let headers = super::parse_headers(header_string);
+        Host: localhost:8080
+        User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:41.0) Gecko/20100101 Firefox/41.0
+        Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+        Accept-Language: en-US,en;q=0.5
+        Accept-Encoding: gzip, deflate
+        DNT: 1
+        Cookie: _ga=GA1.1.395469911.1442866274
+        Connection: keep-alive
+        ".to_string();
+                let headers = super::parse_headers(header_string);
 
-        assert_eq!(headers["DNT"], "1");
-        assert_eq!(headers["Host"], "localhost:8080")
+                assert_eq!(headers["DNT"], "1");
+                assert_eq!(headers["Host"], "localhost:8080")
     }
 
     #[test]
@@ -145,16 +144,17 @@ impl Response {
         self.body.as_bytes()
     }
     fn make_body(&mut self, headers: HashMap<String, String>, serve_directory: String) {
-        let method = headers["Method"].clone();
+        let method = &headers["Method"];
+        let default_index = "index.html".to_string();
         let path = match headers["Path"].as_ref() {
-            "/" => "/index.html".to_string(),
-            _ => headers["Path"].clone(),
+            "/" => &default_index,
+            _ => &headers["Path"],
         };
         // if path == "/" {
         //     let path = "/index.html";
         // }
         // println!("About to look for {}{}", serve_directory, path);
-        let file_path = format!("{}{}", serve_directory, path);
+        let file_path = format!("{}/{}", serve_directory, path);
         let version = headers["Version"].clone();
         let response_text = match self.get_text(&file_path) {
             Some(text) => text,
@@ -164,9 +164,8 @@ impl Response {
             Some(_) => "200 OK".to_string(),
             None => "404 Not Found".to_string(),
         };
-        // let status = "200 OK";
-        let content_type = Response::get_content_type(&path);//"text/html";
-        println!("{} - {} {}", status, method, path);
+        let content_type = Response::get_content_type(&path);
+        println!("{} - {} - {} - {:?}", status, method, path, headers);
         let response_header = format!("{} {}\r\nContent-Type: {}\r\n\r\n", version, status, content_type);
         let response_body = format!("{}", response_text);
         self.body = format!("{}{}\r\n", response_header, response_body);
@@ -180,18 +179,30 @@ impl Response {
             // The `description` method of `io::Error` returns a string that
             // describes the error
             Err(why) => {
-                println!("couldn't open {}: {}", display,
-                                                 Error::description(&why));
+                println!("couldn't open {}: {} ({})", display,
+                                                 Error::description(&why), why);
                 return None;
             },
             Ok(file) => file,
         };
+        let metadata = match file.metadata() {
+            Ok(md) => md,
+            Err(why) => {
+                println!("Couldn't get metadata about {}: {} ({})", display,
+                                                Error::description(&why), why);
+                return None;
+            }
+        };
 
+        if metadata.is_dir() {
+            println!("{} is a directory!", display);
+            return None;
+        }
         let mut s = String::new();
         let content = match file.read_to_string(&mut s) {
             Err(why) => {
-                println!("couldn't read {}: {}", display,
-                                                 Error::description(&why));
+                println!("couldn't read {}: {} ({})", display,
+                                                 Error::description(&why), why);
                 return None;
             }
             Ok(_) => Some(s),
@@ -200,7 +211,7 @@ impl Response {
         content
     }
 
-    pub fn get_content_type(filename: &str) -> String {
+    pub fn get_content_type(filename: &str) -> &str {
         // let formats =
         let format = match filename.split(".").last() {
             Some(format) => format,
@@ -210,10 +221,10 @@ impl Response {
         let content_type = Response::content_type_for(format);
 
         // println!("{} is {}", format, content_type);
-        content_type.to_string()
+        content_type
     }
 
-    pub fn content_type_for(format: &str) -> String {
+    pub fn content_type_for(format: &str) -> &str {
         let mut types = HashMap::new();
         types.insert("html", "text/html");
         types.insert("css", "text/css");
@@ -420,8 +431,8 @@ impl Response {
         types.insert("zaz", "application/vnd.zzazz.deck+xml");
 
         match types.get(format) {
-            Some(content_type) => content_type.to_string(),
-            None => "text/plain".to_string(),
+            Some(content_type) => content_type,
+            None => "text/plain",
         }
     }
 }
